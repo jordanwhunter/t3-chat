@@ -1,5 +1,6 @@
 // src/pages/_app.tsx
 import { httpBatchLink } from "@trpc/client/links/httpBatchLink";
+import { wsLink, createWSClient } from "@trpc/client/links/wsLink";
 import { loggerLink } from "@trpc/client/links/loggerLink";
 import { withTRPC } from "@trpc/next";
 import { SessionProvider } from "next-auth/react";
@@ -26,22 +27,38 @@ const getBaseUrl = () => {
   return `http://localhost:${process.env.PORT ?? 3000}`; // dev SSR should use localhost
 };
 
+const url = `${getBaseUrl()}/api/trpc`;
+
+// This link needs to be at the end links array
+function getEndingLink() {
+  if (typeof window === "undefined") {
+    return httpBatchLink({ url });
+  }
+
+  const client = createWSClient({
+    // web socket requests go over ws protocol
+    url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001",
+  });
+
+  return wsLink({ client });
+}
+
 export default withTRPC<AppRouter>({
   config({ ctx }) {
     /**
      * If you want to use SSR, you need to use the server's full URL
      * @link https://trpc.io/docs/ssr
      */
-    const url = `${getBaseUrl()}/api/trpc`;
 
     return {
       links: [
-        loggerLink({
-          enabled: (opts) =>
-            process.env.NODE_ENV === "development" ||
-            (opts.direction === "down" && opts.result instanceof Error),
-        }),
-        httpBatchLink({ url }),
+        // loggerLink({
+        //   enabled: (opts) =>
+        //     process.env.NODE_ENV === "development" ||
+        //     (opts.direction === "down" && opts.result instanceof Error),
+        // }),
+        // httpBatchLink({ url }),
+        getEndingLink(),
       ],
       url,
       transformer: superjson,
@@ -62,6 +79,12 @@ export default withTRPC<AppRouter>({
       //   }
       //   return {};
       // }
+      headers() {
+        if (ctx?.req) {
+          return { ...ctx.req.headers };
+        }
+        return {};
+      },
     };
   },
   /**

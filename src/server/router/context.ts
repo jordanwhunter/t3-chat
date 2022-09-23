@@ -4,10 +4,13 @@ import * as trpcNext from "@trpc/server/adapters/next";
 import { Session } from "next-auth";
 import { getServerAuthSession } from "../../server/common/get-server-auth-session";
 import { prisma } from "../db/client";
+import EventEmitter from "events";
 
 type CreateContextOptions = {
   session: Session | null;
 };
+
+const ee = new EventEmitter();
 
 /** Use this helper for:
  * - testing, where we dont have to Mock Next.js' req/res
@@ -17,6 +20,7 @@ export const createContextInner = async (opts: CreateContextOptions) => {
   return {
     session: opts.session,
     prisma,
+    ee,
   };
 };
 
@@ -25,7 +29,7 @@ export const createContextInner = async (opts: CreateContextOptions) => {
  * @link https://trpc.io/docs/context
  **/
 export const createContext = async (
-  opts: trpcNext.CreateNextContextOptions,
+  opts: trpcNext.CreateNextContextOptions
 ) => {
   const { req, res } = opts;
 
